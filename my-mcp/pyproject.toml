@@ -1,0 +1,17 @@
+[project]
+name = "my-mcp"
+version = "0.1.0"
+description = "A MCP server project"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [ "mcp>=1.26.0",]
+[[project.authors]]
+name = "Oliwer Urbaniak"
+email = "oliwerx12@gmail.com"
+
+[build-system]
+requires = [ "uv_build>=0.11.1,<0.12.0",]
+build-backend = "uv_build"
+
+[project.scripts]
+my-mcp = "my_mcp:main"
