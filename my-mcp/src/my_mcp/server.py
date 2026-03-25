@@ -1,15 +1,31 @@
 from mcp.server.fastmcp import FastMCP
 import json
 from pathlib import Path
+import sqlite3
 
 mcp = FastMCP(name="Tool Example", port=8080, host="0.0.0.0")
 
 DATA_DIR = Path(__file__).parent.parent.parent / "data"
+DB_PATH = DATA_DIR / "database.db"
 
 @mcp.resource("data://notes")
-def get_notes_resource() -> str:
+def notes_resource() -> str:
     with open(DATA_DIR / "notes.json", "r") as f:
         return json.dumps(json.load(f), indent=2)
+
+@mcp.resource("data://users")
+def users_resource() -> str:
+    conn = sqlite3.connect(DB_PATH)
+    rows = conn.execute('SELECT * FROM users').fetchall()
+    conn.close()
+    return json.dumps([{'id': r[0], 'name': r[1], 'email': r[2]} for r in rows], indent=2)
+
+@mcp.tool()
+def query_users() -> str:
+    conn = sqlite3.connect(DB_PATH)
+    rows = conn.execute('SELECT * FROM users').fetchall()
+    conn.close()
+    return json.dumps([{'id': r[0], 'name': r[1], 'email': r[2]} for r in rows], indent=2)
 
 @mcp.tool()
 def get_notes() -> str:
