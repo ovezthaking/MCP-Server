@@ -7,6 +7,11 @@ mcp = FastMCP(name="Tool Example", port=8080, host="0.0.0.0")
 DATA_DIR = Path(__file__).parent.parent.parent / "data"
 
 @mcp.resource("data://notes")
+def get_notes_resource() -> str:
+    with open(DATA_DIR / "notes.json", "r") as f:
+        return json.dumps(json.load(f), indent=2)
+
+@mcp.tool()
 def get_notes() -> str:
     with open(DATA_DIR / "notes.json", "r") as f:
         return json.dumps(json.load(f), indent=2)
