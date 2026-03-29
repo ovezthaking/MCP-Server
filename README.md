@@ -461,5 +461,5 @@ For issues or questions:
 
 ---
 
-**Last Updated**: 29 marca 2026  
+**Last Updated**: 29 march 2026  
 **Version**: 0.1.0
