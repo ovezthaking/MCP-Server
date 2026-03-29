@@ -428,7 +428,7 @@ print(get_top_coins(10))
 
 ## 📄 License
 
-[Add your license information here]
+MIT License.
 
 ## 👤 Author
 
