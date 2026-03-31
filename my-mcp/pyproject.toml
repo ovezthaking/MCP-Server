@@ -4,7 +4,11 @@ version = "0.1.0"
 description = "A MCP server project"
 readme = "README.md"
 requires-python = ">=3.14"
-dependencies = [ "mcp>=1.26.0",]
+dependencies = [
+ "alembic>=1.18.4",
+ "mcp>=1.26.0",
+ "sqlalchemy>=2.0.0",
+]
 [[project.authors]]
 name = "Oliwer Urbaniak"
 email = "oliwerx12@gmail.com"
