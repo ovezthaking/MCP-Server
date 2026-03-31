@@ -5,13 +5,15 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 WORKDIR /app
 
-COPY pyproject.toml uv.lock ./
+COPY pyproject.toml uv.lock .env ./
 COPY my-mcp/ ./my-mcp/
 
 RUN uv sync --frozen --no-dev --package my-mcp
 
-EXPOSE 8080
+ENV PORT=8080 \
+	HOST=0.0.0.0 \
+	DB_PATH=data/app.db
 
-ENV PATH="/app/.venv/bin:$PATH"
+EXPOSE 8080
 
 CMD ["uv", "run", "--package", "my-mcp", "my-mcp"]

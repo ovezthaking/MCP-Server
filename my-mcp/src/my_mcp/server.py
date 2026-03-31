@@ -1,60 +1,55 @@
+from __future__ import annotations
+from typing import List, Optional, Dict, Any
+from datetime import datetime, timedelta
 from mcp.server.fastmcp import FastMCP
-import json
-from pathlib import Path
-import sqlite3
+from mcp.server.fastmcp.prompts.base import Prompt, UserMessage, AssistantMessage, Message
 import httpx
+import json
+import os
+from dotenv import load_dotenv
+from my_mcp.db.session import SessionLocal
+from my_mcp.db.models import WeatherReading, Location
 
-mcp = FastMCP(name="Tool Example", port=8080, host="0.0.0.0")
+load_dotenv()
 
-DATA_DIR = Path(__file__).parent.parent.parent / "data"
-DB_PATH = DATA_DIR / "database.db"
+HOST = os.getenv("HOST")
+PORT = os.getenv("PORT")
+mcp = FastMCP(name="DataTools", host=HOST, port=PORT)
 
-
-@mcp.resource("data://notes")
-def notes_resource() -> str:
-    with open(DATA_DIR / "notes.json", "r") as f:
-        return json.dumps(json.load(f), indent=2)
-
-
-@mcp.resource("data://users")
-def users_resource() -> str:
-    conn = sqlite3.connect(DB_PATH)
-    rows = conn.execute('SELECT * FROM users').fetchall()
-    conn.close()
-    return json.dumps(
-        [{'id': r[0], 'name': r[1], 'email': r[2]} for r in rows], indent=2
-    )
+# ---------- TOOLS ----------
 
 
 @mcp.tool()
-def query_users() -> str:
-    """Get users from database"""
-    conn = sqlite3.connect(DB_PATH)
-    rows = conn.execute('SELECT * FROM users').fetchall()
-    conn.close()
-    return json.dumps(
-        [{'id': r[0], 'name': r[1], 'email': r[2]} for r in rows], indent=2
-    )
+def readings_for_city(city: str, hours: int = 6) -> List[Dict[str, Any]]:
+    """Return recent weather readings for `city` over the past `hours` hours."""
+    cutoff = datetime.utcnow() - timedelta(hours=hours)
+    with SessionLocal() as s:
+        loc = s.query(Location).filter_by(name=city).one_or_none()
+        if not loc:
+            return []
+        q = (s.query(WeatherReading)
+               .filter(WeatherReading.location_id == loc.id,
+                       WeatherReading.observed_at >= cutoff)
+               .order_by(WeatherReading.observed_at.desc()))
+        rows = q.all()
+        return [
+            {
+                "observed_at": r.observed_at.isoformat(),
+                "temperature_c": r.temperature_c,
+                "humidity_pct": r.humidity_pct,
+                "condition": r.condition,
+            } for r in rows
+        ]
 
 
 @mcp.tool()
-def get_notes() -> str:
-    """Get notes from data"""
-    with open(DATA_DIR / "notes.json", "r") as f:
-        return json.dumps(json.load(f), indent=2)
-
-
-@mcp.tool()
-def sum(a: int, b: int) -> int:
-    """Add two numbers together."""
-    return a + b
-
-
-@mcp.tool()
-def get_weather(city: str, unit: str = "celsius") -> str:
-    """Get weather for a city."""
-    # This would normally call a weather API
-    return f"Weather in {city}: 22degrees{unit[0].upper()}"
+def average_temp(city: str, hours: int = 6) -> Optional[float]:
+    """Average temperature (°C) for `city` for the past `hours` hours."""
+    data = readings_for_city(city=city, hours=hours)
+    temps = [d["temperature_c"] for d in data if d["temperature_c"] is not None]
+    if not temps:
+        return None
+    return sum(temps) / len(temps)
 
 
 @mcp.tool()
@@ -111,8 +106,49 @@ def get_top_coins(limit: int = 5) -> str:
     return json.dumps(result, indent=2)
 
 
+# ---------- RESOURCES ----------
+
+
+@mcp.resource("weather://latest")
+def latest_weather() -> str:
+    """Dynamic resource: latest weather reading across all locations."""
+    with SessionLocal() as s:
+        r = (s.query(WeatherReading)
+               .order_by(WeatherReading.observed_at.desc())
+               .first())
+        if not r:
+            return "No readings yet"
+        return (
+            f"Latest reading: {r.observed_at.isoformat()} "
+            f"temp={r.temperature_c}°C humidity={r.humidity_pct}% "
+            f"loc_id={r.location_id}"
+        )
+
+
+# ---------- PROMPTS ----------
+
+
+@mcp.prompt("weather_summary")
+def weather_summary(city: str, hours: int = 6) -> List[Message]:
+    """
+    Summarize weather for the past N hours.
+    Variables:
+      - city: City name found in DB (e.g., 'Kraków')
+      - hours: Lookback window
+    """
+    # Prompt messages shown to the client/LLM
+    msgs: List[Message] = [
+        UserMessage(
+            content=(
+                f"Provide a concise summary of the last {hours} hours of weather in {city}. "
+                "If there are no readings, say so. Be precise with times and averages."
+            )
+        )
+    ]
+    return msgs
+
+
 def main():
-    """Entry point for the direct execution server."""
     mcp.run("sse")
 
 

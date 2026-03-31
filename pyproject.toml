@@ -3,7 +3,11 @@ name = "mcp-server"
 version = "0.1.0"
 description = "Add your description here"
 requires-python = ">=3.14"
-dependencies = []
+dependencies = [
+    "alembic>=1.18.4",
+    "python-dotenv>=1.2.2",
+    "sqlalchemy>=2.0.48",
+]
 
 [tool.uv.workspace]
 members = [
